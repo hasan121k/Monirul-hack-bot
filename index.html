@@ -205,6 +205,7 @@
         .card.loss h3 { color: #ff0055; }
         .card.target h3 { color: #ffaa00; }
         .card.alert h3 { color: #ff55ff; }
+        .card.jackpot h3 { color: #ffea00; text-shadow: 0 0 10px rgba(255, 234, 0, 0.4); }
         
         .btn { padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-test { background: #0055ff; color: white; margin-top: 10px; width: 100%; box-shadow: 0 0 10px rgba(0, 85, 255, 0.3); transition: 0.3s;}
@@ -335,10 +336,24 @@
                 <input type="text" id="f_endMsg" placeholder="✅ Today's target achieved! See you in the next session.">
             </div>
         </div>
+
+        <!-- NEW: JACKPOT SETTINGS CARD -->
+        <div class="card jackpot">
+            <h3>🎯 JACKPOT / SAFETY NUMBER WIN SETTINGS</h3>
+            <div class="form-group">
+                <label>Jackpot Message (Use {number} or {size} for actual drawn result)</label>
+                <input type="text" id="f_jackpotMsg" value="🎯 JACKPOT WIN! Single Number {number} Matched! 🔥">
+            </div>
+            <div class="grid-3">
+                <div class="form-group"><label>Sticker 1</label><input type="text" id="f_jSticker1"></div>
+                <div class="form-group"><label>Sticker 2</label><input type="text" id="f_jSticker2"></div>
+                <div class="form-group"><label>Sticker 3</label><input type="text" id="f_jSticker3"></div>
+            </div>
+        </div>
         
         <div class="card">
             <h3>🏆 BIG WIN SETTINGS</h3>
-            <div class="form-group"><label>Big Win Message</label><input type="text" id="f_bigMsg" value="✅ WIN (BIG)!"></div>
+            <div class="form-group"><label>Big Win Message (Use {number} for drawn result)</label><input type="text" id="f_bigMsg" value="✅ WIN (BIG)! Result Number: {number}"></div>
             <div class="grid-3">
                 <div class="form-group"><label>Sticker 1</label><input type="text" id="f_bSticker1"></div>
                 <div class="form-group"><label>Sticker 2</label><input type="text" id="f_bSticker2"></div>
@@ -348,7 +363,7 @@
         
         <div class="card small">
             <h3>🏆 SMALL WIN SETTINGS</h3>
-            <div class="form-group"><label>Small Win Message</label><input type="text" id="f_smallMsg" value="✅ WIN (SMALL)!"></div>
+            <div class="form-group"><label>Small Win Message (Use {number} for drawn result)</label><input type="text" id="f_smallMsg" value="✅ WIN (SMALL)! Result Number: {number}"></div>
             <div class="grid-3">
                 <div class="form-group"><label>Sticker 1</label><input type="text" id="f_sSticker1"></div>
                 <div class="form-group"><label>Sticker 2</label><input type="text" id="f_sSticker2"></div>
@@ -359,7 +374,7 @@
         <div class="card loss">
             <h3>❌ LOSS SETTINGS <label style="display:flex; align-items:center; gap:5px; color:#fff; font-size:11px;"> Send Loss? <div class="switch"><input type="checkbox" id="f_sendLoss"><span class="slider"></span></div></label></h3>
             <div class="grid-2">
-                <div class="form-group"><label>Loss Message</label><input type="text" id="f_lossMsg" value="❌ LOSS!"></div>
+                <div class="form-group"><label>Loss Message (Use {number} for drawn result)</label><input type="text" id="f_lossMsg" value="❌ LOSS! Result Number: {number}"></div>
                 <div class="form-group"><label>Loss Sticker</label><input type="text" id="f_lossSticker"></div>
             </div>
         </div>
@@ -440,16 +455,24 @@
             document.getElementById('f_currentWins').value = data.currentWins || 0;
             document.getElementById('f_warningMsg').value = data.warningMsg || '';
             document.getElementById('f_endMsg').value = data.endMsg || '';
-            document.getElementById('f_bigMsg').value = data.bigMsg || '';
+            
+            document.getElementById('f_jackpotMsg').value = data.jackpotMsg || '🎯 JACKPOT WIN! Single Number {number} Matched! 🔥';
+            document.getElementById('f_jSticker1').value = data.jSticker1 || '';
+            document.getElementById('f_jSticker2').value = data.jSticker2 || '';
+            document.getElementById('f_jSticker3').value = data.jSticker3 || '';
+
+            document.getElementById('f_bigMsg').value = data.bigMsg || '✅ WIN (BIG)! Result Number: {number}';
             document.getElementById('f_bSticker1').value = data.bSticker1 || '';
             document.getElementById('f_bSticker2').value = data.bSticker2 || '';
             document.getElementById('f_bSticker3').value = data.bSticker3 || '';
-            document.getElementById('f_smallMsg').value = data.smallMsg || '';
+            
+            document.getElementById('f_smallMsg').value = data.smallMsg || '✅ WIN (SMALL)! Result Number: {number}';
             document.getElementById('f_sSticker1').value = data.sSticker1 || '';
             document.getElementById('f_sSticker2').value = data.sSticker2 || '';
             document.getElementById('f_sSticker3').value = data.sSticker3 || '';
+            
             document.getElementById('f_sendLoss').checked = data.sendLoss ?? true;
-            document.getElementById('f_lossMsg').value = data.lossMsg || '';
+            document.getElementById('f_lossMsg').value = data.lossMsg || '❌ LOSS! Result Number: {number}';
             document.getElementById('f_lossSticker').value = data.lossSticker || '';
 
             const times = data.times || [];
@@ -482,8 +505,9 @@
                 name: document.getElementById('f_channelName').value, server: document.getElementById('f_server').value, isActive: document.getElementById('f_isActive').checked,
                 botToken: document.getElementById('f_botToken').value, chatId: document.getElementById('f_chatId').value, signalMsg: document.getElementById('f_signalMsg').value,
                 stopOnWinTarget: document.getElementById('f_stopOnWinTarget').checked, targetWins: parseInt(document.getElementById('f_targetWins').value) || 4, currentWins: parseInt(document.getElementById('f_currentWins').value) || 0,
-                warningMsg: document.getElementById('f_warningMsg').value, endMsg: document.getElementById('f_endMsg').value, bigMsg: document.getElementById('f_bigMsg').value,
-                bSticker1: document.getElementById('f_bSticker1').value, bSticker2: document.getElementById('f_bSticker2').value, bSticker3: document.getElementById('f_bSticker3').value,
+                warningMsg: document.getElementById('f_warningMsg').value, endMsg: document.getElementById('f_endMsg').value,
+                jackpotMsg: document.getElementById('f_jackpotMsg').value, jSticker1: document.getElementById('f_jSticker1').value, jSticker2: document.getElementById('f_jSticker2').value, jSticker3: document.getElementById('f_jSticker3').value,
+                bigMsg: document.getElementById('f_bigMsg').value, bSticker1: document.getElementById('f_bSticker1').value, bSticker2: document.getElementById('f_bSticker2').value, bSticker3: document.getElementById('f_bSticker3').value,
                 smallMsg: document.getElementById('f_smallMsg').value, sSticker1: document.getElementById('f_sSticker1').value, sSticker2: document.getElementById('f_sSticker2').value, sSticker3: document.getElementById('f_sSticker3').value,
                 sendLoss: document.getElementById('f_sendLoss').checked, lossMsg: document.getElementById('f_lossMsg').value, lossSticker: document.getElementById('f_lossSticker').value, times: times
             };
