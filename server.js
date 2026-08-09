@@ -54,6 +54,53 @@ const serverStates = {
     '5M': { p: null, pred: null, opposites: [], isFetching: false }
 };
 
+// Auto Bold Serif Unicode Converter (𝟓𝟏𝟓𝟖𝟕, 𝐁𝐈𝐆, 𝟏-𝟑 ফন্ট তৈরির জন্য)
+function convertToSerifBold(str) {
+    if (!str) return '';
+    const normalChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-";
+    let result = '';
+    for (let char of str) {
+        let index = normalChars.indexOf(char);
+        if (index !== -1) {
+            const boldMap = [
+                "𝐀","𝐁","𝐂","𝐃","𝐄","𝐅","𝐆","𝐇","𝐈","𝐉","𝐊","𝐋","𝐌","𝐍","𝐎","𝐏","𝐐","𝐑","𝐒","𝐓","𝐔","𝐕","𝐖","𝐗","content𝐘","遇见",
+                "𝐚","𝐛","𝐜","𝐝","𝐞","𝐟","𝐠","𝐡","𝐢","𝐣","𝐤","𝐥","𝐦","𝐧","𝐨","𝐩","𝐪","𝐫","𝐬","𝐭","𝐮","𝐯","𝐰","𝐱","𝐲","𝐳",
+                "𝟎","𝟏","𝟐","𝟑","𝟒","𝟓","𝟔","𝟕","𝟖","𝟗","-"
+            ];
+            result += boldMap[index] || char;
+        } else {
+            result += char;
+        }
+    }
+    return result;
+}
+
+// নাম্বার ইমোজি কোড (যেমন: 2️⃣)
+function getNumberEmoji(num) {
+    const emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"];
+    return emojis[num] || num.toString();
+}
+
+// উইঙ্গো রুলস অনুযায়ী কালার কোড জেনারেশন
+function getWingoColor(num) {
+    if (num === 0) return "RED + VIOLET 🔴🟣";
+    if (num === 5) return "GREEN + VIOLET 🟢🟣";
+    if (num % 2 === 0) return "RED 🔴";
+    return "GREEN 🟢";
+}
+
+// উইন/লস টেমপ্লেট ফরম্যাটার
+function formatResultMessage(template, boldPeriod, numStr, numEmoji, color, size, predicted) {
+    if (!template) return '';
+    return template
+        .replace(/{period}/g, boldPeriod)
+        .replace(/{number}/g, numStr)
+        .replace(/{number_emoji}/g, numEmoji)
+        .replace(/{color}/g, color)
+        .replace(/{size}/g, size)
+        .replace(/{predicted}/g, predicted);
+}
+
 // D4X Strict Logic V15
 function calculateD4XPrediction(list) {
     const last5 = list.slice(0, 5);
@@ -143,14 +190,22 @@ async function tgMsg(token, chat, text) {
 async function tgSticker(token, chat, stickerId) {
     if(!token || !chat || !stickerId || stickerId.trim() === '') return;
     try { 
-        await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
+        let res = await fetch(`https://api.telegram.org/bot${token}/sendSticker`, {
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ chat_id: chat, sticker: stickerId.trim() })
         }); 
-    } catch(e) {}
+        let json = await res.json();
+        if(!json.ok) {
+            console.log(`⚠️ Sticker Send Failed [${chat}]:`, json.description);
+        } else {
+            console.log(`🎯 Sticker sent to Telegram [${chat}]`);
+        }
+    } catch(e) {
+        console.log(`❌ Telegram Sticker API Request Failed:`, e.message);
+    }
 }
 
-async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, newPrediction, newOpposites, nextPeriodStr) {
+async function processPeriodChange(server, checkedPeriod, actualNumber, actualSize, newPrediction, newOpposites, nextPeriodStr) {
     const channelTasks = [];
 
     for (let key in channelsData) {
@@ -185,7 +240,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                     let internalState = channelActiveStates[key];
 
                     let inTime = isTimeAllowed(c.times);
-                    let hasUnresolvedSignal = (internalState.lastSentPeriod === oldPeriod);
+                    let hasUnresolvedSignal = (internalState.lastSentPeriod === checkedPeriod);
 
                     if (!inTime && !internalState.martingaleActive && !hasUnresolvedSignal) {
                         return; 
@@ -198,7 +253,20 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
 
                     // পিরিয়ড নাম্বারকে শেষ ৪ ডিজিটে কাটার লজিক
                     const shortNextPeriod = nextPeriodStr.slice(-4);
-                    const shortOldPeriod = oldPeriod.slice(-4);
+                    const shortCheckedPeriod = checkedPeriod.slice(-4);
+
+                    // ডাইনামিক ইমোজি ও বোল্ড প্রিপারেশন
+                    const boldPeriod = convertToSerifBold(shortNextPeriod);
+                    const boldCheckedPeriod = convertToSerifBold(shortCheckedPeriod);
+                    const boldPrediction = convertToSerifBold(newPrediction);
+                    const safetyStr = newOpposites.join('-');
+                    const boldSafety = convertToSerifBold(safetyStr);
+                    const boldServer = convertToSerifBold(server);
+
+                    const numberEmoji = getNumberEmoji(actualNumber);
+                    const colorStr = getWingoColor(actualNumber);
+                    const boldSizeStr = convertToSerifBold(actualSize);
+                    const boldLastSentPred = convertToSerifBold(internalState.lastSentPred);
 
                     if (hasUnresolvedSignal) {
                         // D4X Strict Win Check
@@ -223,10 +291,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
 
                             // CHECK JACKPOT (Safety matched while size missed)
                             if (safetyMatched) {
-                                let jackMsg = (c.jackpotMsg || '🎯 JACKPOT WIN! Single Number {number} Matched! 🔥')
-                                    .replace(/{period}/g, shortOldPeriod)
-                                    .replace(/{number}/g, numberStr)
-                                    .replace(/{size}/g, sizeStr);
+                                let jackMsg = formatResultMessage(c.jackpotMsg, boldCheckedPeriod, numberStr, numberEmoji, colorStr, boldSizeStr, boldLastSentPred);
                                 await tgMsg(c.botToken, c.chatId, jackMsg);
                                 await sleep(400);
                                 if (c.jSticker1) { await tgSticker(c.botToken, c.chatId, c.jSticker1); await sleep(400); }
@@ -236,20 +301,14 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                             // NORMAL WIN
                             else {
                                 if (actualSize === 'BIG') {
-                                    let winMsg = (c.bigMsg || '✅ WIN (BIG)! Result Number: {number}')
-                                        .replace(/{period}/g, shortOldPeriod)
-                                        .replace(/{number}/g, numberStr)
-                                        .replace(/{size}/g, sizeStr);
+                                    let winMsg = formatResultMessage(c.bigMsg, boldCheckedPeriod, numberStr, numberEmoji, colorStr, boldSizeStr, boldLastSentPred);
                                     if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
                                     await sleep(400); 
                                     if (c.bSticker1) { await tgSticker(c.botToken, c.chatId, c.bSticker1); await sleep(400); }
                                     if (c.bSticker2) { await tgSticker(c.botToken, c.chatId, c.bSticker2); await sleep(400); }
                                     if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
                                 } else {
-                                    let winMsg = (c.smallMsg || '✅ WIN (SMALL)! Result Number: {number}')
-                                        .replace(/{period}/g, shortOldPeriod)
-                                        .replace(/{number}/g, numberStr)
-                                        .replace(/{size}/g, sizeStr);
+                                    let winMsg = formatResultMessage(c.smallMsg, boldCheckedPeriod, numberStr, numberEmoji, colorStr, boldSizeStr, boldLastSentPred);
                                     if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
                                     await sleep(400);
                                     if (c.sSticker1) { await tgSticker(c.botToken, c.chatId, c.sSticker1); await sleep(400); }
@@ -266,10 +325,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                         } else {
                             internalState.martingaleActive = true; 
                             if (c.sendLoss) {
-                                let lMsg = (c.lossMsg || '❌ LOSS! Result Number: {number}')
-                                    .replace(/{period}/g, shortOldPeriod)
-                                    .replace(/{number}/g, numberStr)
-                                    .replace(/{size}/g, sizeStr);
+                                let lMsg = formatResultMessage(c.lossMsg, boldCheckedPeriod, numberStr, numberEmoji, colorStr, boldSizeStr, boldLastSentPred);
                                 if (lMsg) await tgMsg(c.botToken, c.chatId, lMsg);
                                 await sleep(400);
                                 if (c.lossSticker) await tgSticker(c.botToken, c.chatId, c.lossSticker);
@@ -281,13 +337,12 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                     if (!inTime && !internalState.martingaleActive) return; 
 
                     await sleep(400);
-                    const safetyStr = newOpposites.join(', ');
                     let signalText = (c.signalMsg || '')
-                        .replace(/{period}/g, shortNextPeriod)
-                        .replace(/{signal}/g, newPrediction)
-                        .replace(/{safety}/g, safetyStr)
-                        .replace(/{opposites}/g, safetyStr)
-                        .replace(/{server}/g, server);
+                        .replace(/{period}/g, boldPeriod)
+                        .replace(/{signal}/g, boldPrediction)
+                        .replace(/{safety}/g, boldSafety)
+                        .replace(/{opposites}/g, boldSafety)
+                        .replace(/{server}/g, boldServer);
                         
                     await tgMsg(c.botToken, c.chatId, signalText);
 
@@ -385,7 +440,8 @@ async function fetchServerData(server) {
             let nextPeriodStr = (BigInt(actualPeriod) + 1n).toString();
             console.log(`⚡ [${server}] Period Changed! Old: ${actualPeriod} (${actualSize}). New Signal: ${result.prediction}`);
             
-            processPeriodChange(server, oldPeriod, actualNumber, actualSize, result.prediction, result.opposites, nextPeriodStr);
+            // Period mismatch সংশোধনের জন্য এখানে "actualPeriod" (যা সবেমাত্র শেষ হয়েছে) পাঠানো হলো
+            processPeriodChange(server, actualPeriod, actualNumber, actualSize, result.prediction, result.opposites, nextPeriodStr);
         }
         state.isFetching = false;
     } catch (e) {
