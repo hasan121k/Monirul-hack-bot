@@ -196,6 +196,10 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                     const numberStr = actualNumber.toString();
                     const sizeStr = actualSize;
 
+                    // পিরিয়ড নাম্বারকে শেষ ৪ ডিজিটে কাটার লজিক
+                    const shortNextPeriod = nextPeriodStr.slice(-4);
+                    const shortOldPeriod = oldPeriod.slice(-4);
+
                     if (hasUnresolvedSignal) {
                         // D4X Strict Win Check
                         const predMatched = (internalState.lastSentPred === actualSize);
@@ -220,6 +224,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                             // CHECK JACKPOT (Safety matched while size missed)
                             if (safetyMatched) {
                                 let jackMsg = (c.jackpotMsg || '🎯 JACKPOT WIN! Single Number {number} Matched! 🔥')
+                                    .replace(/{period}/g, shortOldPeriod)
                                     .replace(/{number}/g, numberStr)
                                     .replace(/{size}/g, sizeStr);
                                 await tgMsg(c.botToken, c.chatId, jackMsg);
@@ -232,6 +237,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                             else {
                                 if (actualSize === 'BIG') {
                                     let winMsg = (c.bigMsg || '✅ WIN (BIG)! Result Number: {number}')
+                                        .replace(/{period}/g, shortOldPeriod)
                                         .replace(/{number}/g, numberStr)
                                         .replace(/{size}/g, sizeStr);
                                     if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
@@ -241,6 +247,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                                     if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
                                 } else {
                                     let winMsg = (c.smallMsg || '✅ WIN (SMALL)! Result Number: {number}')
+                                        .replace(/{period}/g, shortOldPeriod)
                                         .replace(/{number}/g, numberStr)
                                         .replace(/{size}/g, sizeStr);
                                     if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
@@ -260,6 +267,7 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                             internalState.martingaleActive = true; 
                             if (c.sendLoss) {
                                 let lMsg = (c.lossMsg || '❌ LOSS! Result Number: {number}')
+                                    .replace(/{period}/g, shortOldPeriod)
                                     .replace(/{number}/g, numberStr)
                                     .replace(/{size}/g, sizeStr);
                                 if (lMsg) await tgMsg(c.botToken, c.chatId, lMsg);
@@ -275,10 +283,11 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                     await sleep(400);
                     const safetyStr = newOpposites.join(', ');
                     let signalText = (c.signalMsg || '')
-                        .replace(/{period}/g, nextPeriodStr)
+                        .replace(/{period}/g, shortNextPeriod)
                         .replace(/{signal}/g, newPrediction)
                         .replace(/{safety}/g, safetyStr)
-                        .replace(/{opposites}/g, safetyStr);
+                        .replace(/{opposites}/g, safetyStr)
+                        .replace(/{server}/g, server);
                         
                     await tgMsg(c.botToken, c.chatId, signalText);
 
