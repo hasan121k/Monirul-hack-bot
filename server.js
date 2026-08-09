@@ -193,9 +193,11 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
 
                     let isWin = false;
                     let targetReached = false;
+                    const numberStr = actualNumber.toString();
+                    const sizeStr = actualSize;
 
                     if (hasUnresolvedSignal) {
-                        // D4X Win Check logic
+                        // D4X Strict Win Check
                         const predMatched = (internalState.lastSentPred === actualSize);
                         const safetyMatched = (internalState.lastSentOpposites && internalState.lastSentOpposites.includes(actualNumber));
                         isWin = predMatched || safetyMatched;
@@ -215,19 +217,39 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                                 }
                             }
 
-                            if (actualSize === 'BIG') {
-                                if (c.bigMsg) await tgMsg(c.botToken, c.chatId, c.bigMsg);
-                                await sleep(400); 
-                                if (c.bSticker1) { await tgSticker(c.botToken, c.chatId, c.bSticker1); await sleep(400); }
-                                if (c.bSticker2) { await tgSticker(c.botToken, c.chatId, c.bSticker2); await sleep(400); }
-                                if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
-                            } else {
-                                if (c.smallMsg) await tgMsg(c.botToken, c.chatId, c.smallMsg);
+                            // CHECK JACKPOT (Safety matched while size missed)
+                            if (safetyMatched) {
+                                let jackMsg = (c.jackpotMsg || '🎯 JACKPOT WIN! Single Number {number} Matched! 🔥')
+                                    .replace(/{number}/g, numberStr)
+                                    .replace(/{size}/g, sizeStr);
+                                await tgMsg(c.botToken, c.chatId, jackMsg);
                                 await sleep(400);
-                                if (c.sSticker1) { await tgSticker(c.botToken, c.chatId, c.sSticker1); await sleep(400); }
-                                if (c.sSticker2) { await tgSticker(c.botToken, c.chatId, c.sSticker2); await sleep(400); }
-                                if (c.sSticker3) { await tgSticker(c.botToken, c.chatId, c.sSticker3); }
+                                if (c.jSticker1) { await tgSticker(c.botToken, c.chatId, c.jSticker1); await sleep(400); }
+                                if (c.jSticker2) { await tgSticker(c.botToken, c.chatId, c.jSticker2); await sleep(400); }
+                                if (c.jSticker3) { await tgSticker(c.botToken, c.chatId, c.jSticker3); }
                             } 
+                            // NORMAL WIN
+                            else {
+                                if (actualSize === 'BIG') {
+                                    let winMsg = (c.bigMsg || '✅ WIN (BIG)! Result Number: {number}')
+                                        .replace(/{number}/g, numberStr)
+                                        .replace(/{size}/g, sizeStr);
+                                    if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
+                                    await sleep(400); 
+                                    if (c.bSticker1) { await tgSticker(c.botToken, c.chatId, c.bSticker1); await sleep(400); }
+                                    if (c.bSticker2) { await tgSticker(c.botToken, c.chatId, c.bSticker2); await sleep(400); }
+                                    if (c.bSticker3) { await tgSticker(c.botToken, c.chatId, c.bSticker3); }
+                                } else {
+                                    let winMsg = (c.smallMsg || '✅ WIN (SMALL)! Result Number: {number}')
+                                        .replace(/{number}/g, numberStr)
+                                        .replace(/{size}/g, sizeStr);
+                                    if (winMsg) await tgMsg(c.botToken, c.chatId, winMsg);
+                                    await sleep(400);
+                                    if (c.sSticker1) { await tgSticker(c.botToken, c.chatId, c.sSticker1); await sleep(400); }
+                                    if (c.sSticker2) { await tgSticker(c.botToken, c.chatId, c.sSticker2); await sleep(400); }
+                                    if (c.sSticker3) { await tgSticker(c.botToken, c.chatId, c.sSticker3); }
+                                }
+                            }
                             
                             if ((targetReached || !inTime) && c.endMsg) {
                                 await sleep(400);
@@ -237,7 +259,10 @@ async function processPeriodChange(server, oldPeriod, actualNumber, actualSize, 
                         } else {
                             internalState.martingaleActive = true; 
                             if (c.sendLoss) {
-                                if (c.lossMsg) await tgMsg(c.botToken, c.chatId, c.lossMsg);
+                                let lMsg = (c.lossMsg || '❌ LOSS! Result Number: {number}')
+                                    .replace(/{number}/g, numberStr)
+                                    .replace(/{size}/g, sizeStr);
+                                if (lMsg) await tgMsg(c.botToken, c.chatId, lMsg);
                                 await sleep(400);
                                 if (c.lossSticker) await tgSticker(c.botToken, c.chatId, c.lossSticker);
                             }
